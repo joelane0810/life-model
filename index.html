@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Life Model">
+<title>Life Model</title>
+<style>
+:root {
+  --c1: #1D9E75; --c2: #BA7517; --c3: #534AB7;
+  --bg1: rgba(29,158,117,.1); --bg2: rgba(186,117,23,.1); --bg3: rgba(83,74,183,.1);
+  --surface: #f5f4f1; --card: #ffffff; --border: rgba(0,0,0,.09);
+  --t1: #111; --t2: rgba(0,0,0,.5); --t3: rgba(0,0,0,.3);
+  --r: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --surface: #111; --card: #1c1c1e; --border: rgba(255,255,255,.1); --t1: #f0f0f0; --t2: rgba(255,255,255,.5); --t3: rgba(255,255,255,.28); }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--surface); color: var(--t1); min-height: 100vh; }
+.app { max-width: 480px; margin: 0 auto; padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+.screen { display: none; padding: 1.5rem 1rem 1rem; animation: fi .25s ease; }
+.screen.active { display: block; }
+@keyframes fi { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+
+/* NAV */
+.nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: var(--card); border-top: .5px solid var(--border); display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+.nav-btn { flex: 1; border: none; background: none; padding: 8px 0 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--t3); font-family: inherit; transition: color .15s; }
+.nav-btn.active { color: var(--c1); }
+.nav-btn svg { width: 20px; height: 20px; }
+.nav-btn span { font-size: 9px; font-weight: 500; }
+.nav-log-btn { flex: 1; border: none; background: none; padding: 5px 0 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+.nav-log-circle { width: 38px; height: 38px; border-radius: 50%; background: #111; display: flex; align-items: center; justify-content: center; }
+@media (prefers-color-scheme: dark) { .nav-log-circle { background: rgba(255,255,255,.85); } }
+.nav-log-circle svg { stroke: white; }
+
+/* CARDS & UTILS */
+.card { background: var(--card); border-radius: var(--r); border: .5px solid var(--border); }
+.pill { display: inline-flex; align-items: center; gap: 5px; border-radius: 20px; padding: 4px 11px; font-size: 12px; font-weight: 600; }
+.pill-dot { width: 6px; height: 6px; border-radius: 50%; }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 1.5rem; }
+.stat-card { background: var(--card); border-radius: 10px; padding: 11px 7px; text-align: center; }
+.stat-label { font-size: 9px; color: var(--t3); letter-spacing: .5px; margin-bottom: 5px; font-weight: 500; }
+.stat-val { font-size: 22px; font-weight: 700; line-height: 1; }
+.stat-sub { font-size: 9px; color: var(--t3); margin-top: 3px; }
+.section-label { font-size: 9px; color: var(--t3); letter-spacing: 1px; margin-bottom: 8px; font-weight: 500; }
+.btn-primary { width: 100%; padding: 13px; border: none; border-radius: var(--r); font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity .15s; font-family: inherit; color: white; }
+.btn-primary:active { opacity: .8; }
+.btn-sec { width: 100%; padding: 12px; border: .5px solid var(--border); background: none; border-radius: var(--r); font-size: 14px; color: var(--t2); cursor: pointer; font-family: inherit; transition: opacity .15s; }
+
+/* LOG CARDS */
+.log-card { background: var(--card); border-radius: 10px; padding: 11px 13px; margin-bottom: 8px; cursor: pointer; transition: opacity .15s; }
+.log-card:active { opacity: .75; }
+.log-card-title { font-size: 13px; color: var(--t1); line-height: 1.45; }
+.log-card-meta { font-size: 11px; color: var(--t3); margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; }
+.log-detail { margin-top: 11px; padding-top: 11px; border-top: .5px solid var(--border); display: none; }
+.log-detail.open { display: block; animation: fi .2s ease; }
+.log-step-label { font-size: 9px; color: var(--t3); letter-spacing: .5px; margin-bottom: 2px; font-weight: 500; }
+.log-step-val { font-size: 13px; color: var(--t1); line-height: 1.5; margin-bottom: 9px; }
+
+/* PROGRESS BAR */
+.prog-bar { height: 6px; background: rgba(0,0,0,.07); border-radius: 3px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 3px; transition: width .5s ease; }
+@media (prefers-color-scheme: dark) { .prog-bar { background: rgba(255,255,255,.1); } }
+
+/* FORM */
+.form-step { animation: fi .25s ease; }
+.form-step-label { font-size: 9px; letter-spacing: 1px; margin-bottom: 8px; font-weight: 600; }
+.form-question { font-size: 20px; font-weight: 600; color: var(--t1); margin-bottom: 7px; line-height: 1.4; }
+.form-hint { font-size: 13px; color: var(--t2); margin-bottom: 1.5rem; line-height: 1.5; }
+textarea, input[type=text], input[type=password] {
+  width: 100%; padding: 12px; font-size: 16px; line-height: 1.65;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  color: var(--t1); resize: none; font-family: inherit;
+  transition: border-color .2s; outline: none;
+  -webkit-appearance: none;
+}
+textarea:focus, input:focus { border-color: var(--active-color, var(--c1)); }
+.domain-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.domain-btn { padding: 10px 6px; border-radius: 8px; font-size: 12px; border: .5px solid var(--border); background: var(--surface); color: var(--t1); cursor: pointer; font-family: inherit; transition: all .15s; font-weight: 400; }
+.domain-btn.sel { font-weight: 600; border-width: 2px; }
+.intent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.intent-btn { padding: 12px 8px; border-radius: 8px; font-size: 12px; border: .5px solid var(--border); background: var(--surface); color: var(--t1); cursor: pointer; font-family: inherit; line-height: 1.4; transition: all .15s; font-weight: 400; }
+.intent-btn.sel { font-weight: 600; border-width: 2px; }
+.btn-row { display: flex; gap: 10px; margin-top: 13px; }
+
+/* PHASE CARDS */
+.phase-card { border-radius: var(--r); padding: 1rem; margin-bottom: 12px; border: .5px solid var(--border); background: var(--card); transition: opacity .2s; }
+.phase-card.active { border-width: 2px; }
+.phase-card.inactive { opacity: .5; }
+
+/* COACH */
+.chat-bubble { max-width: 86%; padding: 9px 13px; font-size: 13px; line-height: 1.65; border-radius: 12px; white-space: pre-wrap; }
+.chat-user { background: var(--c1); color: white; border-radius: 12px 12px 4px 12px; margin-left: auto; }
+.chat-ai { background: var(--card); color: var(--t1); border-radius: 12px 12px 12px 4px; }
+.chat-wrap { display: flex; margin-bottom: 10px; }
+.chat-wrap.user { justify-content: flex-end; }
+@keyframes dot { 0%,80%,100% { opacity:.25; } 40% { opacity:1; } }
+.dot1 { animation: dot 1.2s 0s infinite; }
+.dot2 { animation: dot 1.2s .2s infinite; }
+.dot3 { animation: dot 1.2s .4s infinite; }
+.dots-wrap { display: flex; gap: 4px; padding: 8px 13px; margin-bottom: 8px; }
+.dot-el { width: 7px; height: 7px; border-radius: 50%; background: var(--t3); }
+
+/* BANNER */
+.banner { border-radius: 10px; padding: 13px 14px; margin-bottom: 1.5rem; }
+.banner-title { font-size: 9px; letter-spacing: 1px; font-weight: 600; margin-bottom: 7px; }
+.banner-text { font-size: 14px; line-height: 1.65; margin-bottom: 12px; color: var(--t1); }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HOME -->
+<div id="screen-home" class="screen active">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem">
+    <div>
+      <div style="font-size:9px;color:var(--t3);letter-spacing:1px;margin-bottom:8px;font-weight:500">LIFE MODEL · 6 THÁNG</div>
+      <div id="home-phase-pill" class="pill" style="margin-bottom:6px"></div>
+      <div id="home-phase-desc" style="font-size:13px;color:var(--t2);line-height:1.5"></div>
+    </div>
+    <div style="text-align:right;margin-left:16px;flex-shrink:0">
+      <div style="font-size:9px;color:var(--t3);letter-spacing:1px">NGÀY</div>
+      <div id="home-days" style="font-size:34px;font-weight:700;line-height:1">0</div>
+      <div style="font-size:9px;color:var(--t3)">/180</div>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-label">STREAK</div><div id="stat-streak" class="stat-val">0</div><div class="stat-sub">ngày</div></div>
+    <div class="stat-card"><div class="stat-label">TỔNG LOG</div><div id="stat-total" class="stat-val">0</div><div class="stat-sub">lần</div></div>
+    <div class="stat-card"><div class="stat-label">CHỦ ĐÍCH</div><div id="stat-intent" class="stat-val">—</div><div class="stat-sub" id="stat-intent-sub">chưa có</div></div>
+  </div>
+
+  <div id="home-banner"></div>
+
+  <div id="home-top-pattern" style="margin-bottom:1.5rem;display:none">
+    <div class="section-label">MÔ HÌNH NỔI TRỘI</div>
+    <div class="card" style="padding:11px 14px;display:flex;justify-content:space-between;align-items:center">
+      <span id="top-pattern-name" style="font-size:14px;font-weight:500"></span>
+      <span id="top-pattern-count" style="font-size:12px;color:var(--t2)"></span>
+    </div>
+  </div>
+
+  <div id="home-recent" style="display:none">
+    <div class="section-label">GẦN ĐÂY</div>
+    <div id="home-recent-list"></div>
+    <button class="btn-sec" id="home-see-all" style="margin-top:4px" onclick="goTab('hist')"></button>
+  </div>
+
+  <div id="home-empty" style="text-align:center;padding:2.5rem 1rem;display:none">
+    <div style="width:52px;height:52px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--t3)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
+    </div>
+    <div style="font-size:15px;font-weight:600;margin-bottom:6px">Hành trình bắt đầu từ đây</div>
+    <div style="font-size:13px;line-height:1.65;margin-bottom:18px;color:var(--t2)">Ghi lại phản ứng đầu tiên của bạn<br>để bắt đầu nhận ra mô hình</div>
+    <button class="btn-primary" id="home-start-btn" style="width:auto;padding:11px 26px" onclick="goTab('log')">Bắt đầu ngay</button>
+  </div>
+</div>
+
+<!-- LOG -->
+<div id="screen-log" class="screen">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+    <button class="btn-sec" style="width:auto;padding:8px 14px" onclick="goTab('home')">← Hủy</button>
+    <div id="log-step-counter" style="font-size:12px;color:var(--t3)">1 / 5</div>
+  </div>
+  <div style="height:3px;background:rgba(0,0,0,.07);border-radius:2px;margin-bottom:2rem;overflow:hidden" id="log-prog-wrap">
+    <div id="log-prog" style="height:100%;border-radius:2px;transition:width .3s;width:0%"></div>
+  </div>
+  <div id="log-content"></div>
+</div>
+
+<!-- HISTORY -->
+<div id="screen-hist" class="screen">
+  <div style="font-size:18px;font-weight:600;margin-bottom:1.5rem">Mô hình của bạn</div>
+  <div id="hist-empty" style="text-align:center;padding:3rem;color:var(--t2);font-size:14px;display:none">Chưa có log nào. Hãy bắt đầu ghi chép!</div>
+  <div id="hist-content" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.5rem">
+      <div class="stat-card" style="text-align:left;padding:13px 12px">
+        <div class="stat-label">TỶ LỆ CHỦ ĐÍCH</div>
+        <div id="hist-ir" class="stat-val" style="font-size:28px">0%</div>
+        <div id="hist-ir-sub" class="stat-sub"></div>
+      </div>
+      <div class="stat-card" style="text-align:left;padding:13px 12px">
+        <div class="stat-label">TỔNG SỰ KIỆN</div>
+        <div id="hist-total" class="stat-val" style="font-size:28px">0</div>
+        <div class="stat-sub">đã ghi chép</div>
+      </div>
+    </div>
+    <div style="margin-bottom:1.5rem">
+      <div class="section-label">PHÂN BỔ THEO LĨNH VỰC</div>
+      <div id="hist-domains"></div>
+    </div>
+    <div id="hist-filters" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap"></div>
+    <div id="hist-list"></div>
+  </div>
+</div>
+
+<!-- COACH -->
+<div id="screen-coach" class="screen">
+  <div style="font-size:18px;font-weight:600;margin-bottom:4px">AI Coach</div>
+  <div style="font-size:13px;color:var(--t2);margin-bottom:1.5rem">Phân tích dựa trên dữ liệu TRACE thực của bạn</div>
+
+  <div id="coach-apikey-section" style="display:none;margin-bottom:1.5rem">
+    <div style="font-size:12px;color:var(--t2);margin-bottom:8px">Nhập Anthropic API Key để dùng AI Coach:</div>
+    <input type="password" id="coach-apikey" placeholder="sk-ant-..." style="margin-bottom:8px">
+    <button class="btn-primary" id="coach-save-key-btn" onclick="saveApiKey()">Lưu & kích hoạt</button>
+    <div style="font-size:11px;color:var(--t3);margin-top:8px;line-height:1.5">Lấy API key miễn phí tại <span style="color:var(--c3)">console.anthropic.com</span>. Key được lưu trên thiết bị của bạn.</div>
+  </div>
+
+  <button id="coach-analyze-btn" class="btn-primary" onclick="analyzePatterns()" style="margin-bottom:1.5rem">✦ Phân tích log của tôi</button>
+  <div id="coach-insight" style="display:none;background:var(--card);border-radius:var(--r);padding:1rem 1.2rem;margin-bottom:1.5rem;font-size:14px;line-height:1.75;white-space:pre-wrap;border-left:3px solid"></div>
+
+  <div style="border-top:.5px solid var(--border);padding-top:1.2rem">
+    <div class="section-label" style="margin-bottom:12px">HỎI TRỰC TIẾP</div>
+    <div id="chat-log" style="max-height:280px;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="chat-input" placeholder="Hỏi về mô hình của bạn..." onkeydown="if(event.key==='Enter')sendChat()" style="flex:1">
+      <button id="chat-send" onclick="sendChat()" style="padding:9px 15px;background:var(--c1);color:white;border:none;border-radius:var(--r);font-size:16px;cursor:pointer;flex-shrink:0">→</button>
+    </div>
+  </div>
+</div>
+
+<!-- JOURNEY -->
+<div id="screen-jour" class="screen">
+  <div style="font-size:18px;font-weight:600;margin-bottom:4px">Hành trình 6 tháng</div>
+  <div id="jour-start" style="font-size:13px;color:var(--t2);margin-bottom:1.5rem">Chưa bắt đầu</div>
+
+  <div id="jour-progress-card" style="display:none;background:var(--card);border-radius:var(--r);padding:1rem;margin-bottom:1.5rem">
+    <div style="display:flex;justify-content:space-between;margin-bottom:7px;font-size:13px">
+      <span style="color:var(--t2)">Tổng tiến độ</span>
+      <span style="font-weight:600" id="jour-prog-text">0/180</span>
+    </div>
+    <div style="height:10px;background:rgba(0,0,0,.07);border-radius:5px;overflow:hidden">
+      <div id="jour-prog-fill" style="height:100%;background:linear-gradient(to right,#1D9E75,#EF9F27,#534AB7);border-radius:5px;transition:width .5s;width:0%"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t3);margin-top:5px">
+      <span>Ngày 1</span><span>60</span><span>120</span><span>180</span>
+    </div>
+  </div>
+
+  <div id="jour-phases"></div>
+
+  <div class="card" style="padding:1rem;margin-top:8px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:11px">Bạn đang đi đúng hướng khi...</div>
+    <div style="display:flex;gap:9px;margin-bottom:9px;align-items:flex-start">
+      <span style="font-size:9px;padding:3px 7px;background:rgba(29,158,117,.12);color:#1D9E75;border-radius:10px;font-weight:600;flex-shrink:0">P1</span>
+      <span style="font-size:13px;color:var(--t2);line-height:1.5">Nhận ra phản ứng TRONG lúc nó xảy ra — không phải sau đó mới nhớ ra</span>
+    </div>
+    <div style="display:flex;gap:9px;margin-bottom:9px;align-items:flex-start">
+      <span style="font-size:9px;padding:3px 7px;background:rgba(186,117,23,.12);color:#BA7517;border-radius:10px;font-weight:600;flex-shrink:0">P2</span>
+      <span style="font-size:13px;color:var(--t2);line-height:1.5">Dừng lại ≥1 lần/ngày trước khi hành động tự động</span>
+    </div>
+    <div style="display:flex;gap:9px;margin-bottom:12px;align-items:flex-start">
+      <span style="font-size:9px;padding:3px 7px;background:rgba(83,74,183,.12);color:#534AB7;border-radius:10px;font-weight:600;flex-shrink:0">P3</span>
+      <span style="font-size:13px;color:var(--t2);line-height:1.5">Tỷ lệ "chủ đích" trong log tăng đều qua từng tuần</span>
+    </div>
+    <div id="jour-ir-card" style="display:none;background:var(--surface);border-radius:8px;padding:9px 12px;display:none;align-items:center;justify-content:space-between">
+      <span style="font-size:13px;color:var(--t2)">Tỷ lệ chủ đích hiện tại</span>
+      <span id="jour-ir-val" style="font-size:16px;font-weight:700"></span>
+    </div>
+  </div>
+
+  <!-- BACKUP -->
+  <div class="card" style="padding:1rem;margin-top:12px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:4px">Sao lưu dữ liệu</div>
+    <div style="font-size:12px;color:var(--t2);line-height:1.55;margin-bottom:14px">Xuất file backup để bảo vệ dữ liệu. Nhập lại khi đổi thiết bị hoặc sau khi xóa trình duyệt.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <button onclick="exportData()" style="padding:11px 8px;border:1.5px solid #1D9E75;background:rgba(29,158,117,.08);color:#1D9E75;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Xuất backup
+      </button>
+      <button onclick="document.getElementById('import-file').click()" style="padding:11px 8px;border:.5px solid var(--border);background:var(--surface);color:var(--t1);border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Nhập backup
+      </button>
+    </div>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+    <div id="backup-msg" style="display:none;margin-top:10px;font-size:12px;padding:8px 12px;border-radius:8px"></div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-btn active" onclick="goTab('home')" id="nav-home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span>Tổng quan</span>
+  </button>
+  <button class="nav-btn" onclick="goTab('hist')" id="nav-hist">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="8"/></svg>
+    <span>Mô hình</span>
+  </button>
+  <button class="nav-log-btn" onclick="goTab('log')">
+    <div class="nav-log-circle">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </div>
+  </button>
+  <button class="nav-btn" onclick="goTab('coach')" id="nav-coach">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    <span>Coach</span>
+  </button>
+  <button class="nav-btn" onclick="goTab('jour')" id="nav-jour">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+    <span>Hành trình</span>
+  </button>
+</nav>
+
+</div><!-- /app -->
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const DOMAINS = [
+  {id:'kinh_te',l:'Kinh tế'},{id:'gia_dinh',l:'Gia đình'},{id:'ban_be',l:'Bạn bè'},
+  {id:'suc_khoe',l:'Sức khỏe'},{id:'ban_than',l:'Bản thân'},{id:'khac',l:'Khác'},
+];
+const TRACE_STEPS = [
+  {k:'trigger',lb:'T — TRIGGER',q:'Điều gì vừa xảy ra?',h:'Tình huống, sự kiện, lời nói của ai đó...'},
+  {k:'reaction',lb:'R — REACTION',q:'Bạn cảm thấy gì ngay lúc đó?',h:'Cảm xúc + cảm giác cơ thể (tức giận, tim đập nhanh, muốn né tránh...)'},
+  {k:'automatic',lb:'A — AUTOMATIC THOUGHT',q:'Suy nghĩ đầu tiên xuất hiện là gì?',h:'Câu nói trong đầu, không kiểm duyệt — viết ngay'},
+  {k:'choice',lb:'C — CHOICE',q:'Bạn đã làm gì?',h:'Hành động thực tế bạn đã thực hiện lúc đó'},
+  {k:'effect',lb:'E — EFFECT',q:'Kết quả là gì?',h:'Chuyện gì xảy ra sau đó? Bạn cảm thấy thế nào?'},
+];
+const PHASES = [
+  {id:1,n:'OBSERVE',c:'#1D9E75',bg:'rgba(29,158,117,.1)',tc:'#085041',r:'Tháng 1–2',d:[1,60],
+   ds:'Quan sát & ghi chép phản ứng tự động không phán xét',
+   g:'Xây dựng thói quen quan sát. Ghi lại ít nhất 1 phản ứng mỗi ngày.',
+   ms:[{d:7,t:'7 logs đầu tiên'},{d:30,t:'Nhận ra 2 mô hình lặp lại'},{d:60,t:'Bản đồ đầy đủ theo lĩnh vực'}]},
+  {id:2,n:'INTERRUPT',c:'#BA7517',bg:'rgba(186,117,23,.1)',tc:'#633806',r:'Tháng 3–4',d:[61,120],
+   ds:'Nhận ra & dừng lại trước khi hành động tự động',
+   g:'Tập kỹ năng pause 4 giây. Mục tiêu: dừng lại ít nhất 1 lần/ngày.',
+   ms:[{d:75,t:'Dừng lại 3 lần/tuần'},{d:90,t:'Tỷ lệ chủ đích ≥30%'},{d:120,t:'Tỷ lệ chủ đích ≥50%'}]},
+  {id:3,n:'REDIRECT',c:'#534AB7',bg:'rgba(83,74,183,.1)',tc:'#26215C',r:'Tháng 5–6',d:[121,180],
+   ds:'Chủ động chọn phản ứng mới thay thế autopilot cũ',
+   g:'Cài hành vi mới vào cùng vòng lặp kích hoạt. Đo kết quả thực tế.',
+   ms:[{d:150,t:'Phản ứng mới thành thói quen ở 1 lĩnh vực'},{d:165,t:'Kết quả khác biệt so với tháng 1'},{d:180,t:'Đánh giá toàn bộ hành trình'}]},
+];
+const PROMPTS = [
+  ["Hôm nay bạn có phản ứng tự động nào đáng chú ý?","Khi nào cảm xúc mạnh nhất hôm nay?","Có lúc nào hành động mà không suy nghĩ trước không?"],
+  ["Lần này khi cảm xúc nổi lên, bạn có dừng lại được không?","Khoảnh khắc nào hôm nay muốn phản ứng khác đi?","Bạn có nhận ra mô hình quen thuộc nào hôm nay không?"],
+  ["Bạn đã chủ động chọn phản ứng khác so với thói quen chưa?","Hành động nào hôm nay khác với mô hình cũ?","Kết quả của việc phản ứng có chủ đích hôm nay là gì?"],
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let logs = JSON.parse(localStorage.getItem('trace_logs_v4') || '[]');
+let stats = JSON.parse(localStorage.getItem('trace_stats_v4') || '{"startDate":null,"streak":0,"lastLogDate":null,"totalLogs":0}');
+let logForm = {step:0, data:{trigger:'',reaction:'',automatic:'',choice:'',effect:'',domain:'',intentional:null}};
+let histFilter = 'all';
+let chatHistory = [];
+let coachLoading = false;
+
+function save() {
+  localStorage.setItem('trace_logs_v4', JSON.stringify(logs));
+  localStorage.setItem('trace_stats_v4', JSON.stringify(stats));
+}
+
+// ── COMPUTED ──────────────────────────────────────────────────────────────────
+function getDays() {
+  if (!stats.startDate) return 0;
+  return Math.floor((new Date() - new Date(stats.startDate)) / 86400000) + 1;
+}
+function getPhase() {
+  const d = getDays();
+  return d <= 0 ? 0 : d <= 60 ? 0 : d <= 120 ? 1 : 2;
+}
+function getPhaseData() { return PHASES[getPhase()]; }
+function getIntentionalRate() {
+  if (!logs.length) return null;
+  return Math.round(logs.filter(l => l.intentional).length / logs.length * 100);
+}
+function today() { return new Date().toISOString().split('T')[0]; }
+
+// ── NAV ───────────────────────────────────────────────────────────────────────
+let currentTab = 'home';
+function goTab(tab) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + tab).classList.add('active');
+  if (document.getElementById('nav-' + tab)) document.getElementById('nav-' + tab).classList.add('active');
+  currentTab = tab;
+  if (tab === 'home') renderHome();
+  if (tab === 'hist') renderHist();
+  if (tab === 'coach') renderCoach();
+  if (tab === 'jour') renderJour();
+  if (tab === 'log') startLog();
+}
+
+// ── RENDER HOME ───────────────────────────────────────────────────────────────
+function renderHome() {
+  const p = getPhaseData(), days = getDays(), ir = getIntentionalRate();
+  const td = today(), loggedToday = logs.some(l => l.date === td);
+
+  // Phase pill
+  const pill = document.getElementById('home-phase-pill');
+  pill.style.background = p.bg; pill.style.color = p.c;
+  pill.innerHTML = `<div class="pill-dot" style="background:${p.c}"></div>Phase ${p.id}: ${p.n}`;
+  document.getElementById('home-phase-desc').textContent = p.ds;
+  document.getElementById('home-days').textContent = days;
+  document.getElementById('home-days').style.color = p.c;
+
+  // Stats
+  document.getElementById('stat-streak').textContent = stats.streak || 0;
+  document.getElementById('stat-total').textContent = stats.totalLogs || 0;
+  if (ir !== null) {
+    document.getElementById('stat-intent').textContent = ir + '%';
+    document.getElementById('stat-intent').style.color = ir >= 50 ? '#1D9E75' : '#BA7517';
+    document.getElementById('stat-intent-sub').textContent = 'tỷ lệ';
+  }
+
+  // Banner
+  const banner = document.getElementById('home-banner');
+  if (!loggedToday) {
+    const prompt = PROMPTS[p.id - 1][(stats.totalLogs || 0) % 3];
+    banner.innerHTML = `
+      <div class="banner" style="border:1.5px solid ${p.c}30;border-left:3px solid ${p.c};background:${p.bg}">
+        <div class="banner-title" style="color:${p.c}">NHẮC NHỞ HÔM NAY</div>
+        <div class="banner-text">${prompt}</div>
+        <button class="btn-primary" style="background:${p.c}" onclick="goTab('log')">Ghi lại ngay →</button>
+      </div>`;
+  } else {
+    banner.innerHTML = `
+      <div style="border:.5px solid ${p.c}40;border-radius:10px;padding:11px 14px;margin-bottom:1.5rem;display:flex;align-items:center;gap:10px;background:${p.bg}">
+        <div style="width:30px;height:30px;border-radius:50%;background:rgba(29,158,117,.2);display:flex;align-items:center;justify-content:center;color:#1D9E75;flex-shrink:0">✓</div>
+        <div><div style="font-size:13px;font-weight:600;color:#1D9E75">Đã log hôm nay 🔥</div><div style="font-size:12px;color:var(--t2)">Streak: ${stats.streak} ngày liên tiếp</div></div>
+      </div>`;
+  }
+
+  // Top pattern
+  const dc = {};
+  logs.slice(0, 20).forEach(l => { dc[l.domain] = (dc[l.domain] || 0) + 1; });
+  const top = Object.entries(dc).sort((a,b) => b[1]-a[1])[0];
+  if (top) {
+    document.getElementById('home-top-pattern').style.display = 'block';
+    document.getElementById('top-pattern-name').textContent = DOMAINS.find(d=>d.id===top[0])?.l || top[0];
+    document.getElementById('top-pattern-count').textContent = top[1] + ' lần gần đây';
+  }
+
+  // Recent / empty
+  if (logs.length > 0) {
+    document.getElementById('home-recent').style.display = 'block';
+    document.getElementById('home-empty').style.display = 'none';
+    const list = document.getElementById('home-recent-list');
+    list.innerHTML = logs.slice(0,3).map(lg => logCardHTML(lg, true)).join('');
+    document.getElementById('home-see-all').textContent = `Xem tất cả ${logs.length} logs →`;
+    document.getElementById('home-start-btn') && (document.getElementById('home-start-btn').style.background = p.c);
+  } else {
+    document.getElementById('home-recent').style.display = 'none';
+    document.getElementById('home-empty').style.display = 'block';
+    document.getElementById('home-empty').querySelector('.btn-primary').style.background = p.c;
+  }
+}
+
+// ── LOG CARDS ─────────────────────────────────────────────────────────────────
+function logCardHTML(lg, compact) {
+  const dm = DOMAINS.find(d=>d.id===lg.domain);
+  const borderColor = lg.intentional ? '#1D9E75' : '#EF9F27';
+  const intentLabel = lg.intentional ? '<span style="color:#1D9E75;font-weight:500">● Chủ đích</span>' : '<span style="color:#BA7517;font-weight:500">● Tự động</span>';
+  const preview = lg.trigger.length > 85 ? lg.trigger.slice(0, 85) + '...' : lg.trigger;
+  let detail = '';
+  if (!compact) {
+    detail = `<div class="log-detail" id="ld-${lg.id}">
+      ${TRACE_STEPS.map(s => `<div class="log-step-label">${s.lb}</div><div class="log-step-val">${lg[s.k]||''}</div>`).join('')}
+    </div>`;
+  }
+  return `<div class="log-card" style="border-left:3px solid ${borderColor}" ${compact ? '' : `onclick="toggleLog('${lg.id}')"`}>
+    <div class="log-card-title">${preview}</div>
+    <div class="log-card-meta"><span>${lg.date}</span>${dm?`<span>${dm.l}</span>`:''}${intentLabel}</div>
+    ${detail}
+  </div>`;
+}
+function toggleLog(id) {
+  const el = document.getElementById('ld-' + id);
+  if (el) el.classList.toggle('open');
+}
+
+// ── LOG FORM ──────────────────────────────────────────────────────────────────
+function startLog() {
+  logForm = {step:0, data:{trigger:'',reaction:'',automatic:'',choice:'',effect:'',domain:'',intentional:null}};
+  renderLogStep();
+}
+
+function renderLogStep() {
+  const p = getPhaseData();
+  const isMeta = logForm.step === TRACE_STEPS.length;
+  const pct = isMeta ? 100 : Math.round(logForm.step / TRACE_STEPS.length * 100);
+  document.getElementById('log-prog').style.width = pct + '%';
+  document.getElementById('log-prog').style.background = p.c;
+  document.getElementById('log-step-counter').textContent = isMeta ? 'Phân loại' : (logForm.step + 1) + ' / ' + TRACE_STEPS.length;
+  document.getElementById('screen-log').style.setProperty('--active-color', p.c);
+
+  if (!isMeta) {
+    const s = TRACE_STEPS[logForm.step];
+    const val = logForm.data[s.k];
+    document.getElementById('log-content').innerHTML = `
+      <div class="form-step">
+        <div class="form-step-label" style="color:${p.c}">${s.lb}</div>
+        <div class="form-question">${s.q}</div>
+        <div class="form-hint">${s.h}</div>
+        <textarea id="log-textarea" rows="5" placeholder="Viết ở đây...">${val}</textarea>
+        <div class="btn-row">
+          ${logForm.step > 0 ? `<button class="btn-sec" style="flex:1" onclick="logBack()">← Quay lại</button>` : ''}
+          <button id="log-next-btn" class="btn-primary" style="flex:2;background:${p.c}" onclick="logNext()" ${val.trim()?'':'disabled'}>
+            ${logForm.step === TRACE_STEPS.length-1 ? 'Tiếp tục →' : 'Tiếp →'}
+          </button>
+        </div>
+      </div>`;
+    const ta = document.getElementById('log-textarea');
+    ta.addEventListener('input', e => {
+      logForm.data[s.k] = e.target.value;
+      document.getElementById('log-next-btn').disabled = !e.target.value.trim();
+    });
+    setTimeout(() => ta.focus(), 100);
+  } else {
+    // Meta step
+    const domainBtns = DOMAINS.map(d =>
+      `<button class="domain-btn ${logForm.data.domain===d.id?'sel':''}" 
+        style="${logForm.data.domain===d.id?`border-color:${p.c};background:${p.bg};color:${p.tc};`:''}"
+        onclick="selectDomain('${d.id}')">${d.l}</button>`
+    ).join('');
+    const ok = logForm.data.domain && logForm.data.intentional !== null;
+    document.getElementById('log-content').innerHTML = `
+      <div class="form-step">
+        <div style="font-size:18px;font-weight:600;margin-bottom:1.5rem">Phân loại sự kiện</div>
+        <div style="margin-bottom:1.5rem">
+          <div style="font-size:13px;color:var(--t2);margin-bottom:10px">Lĩnh vực</div>
+          <div class="domain-grid">${domainBtns}</div>
+        </div>
+        <div style="margin-bottom:2rem">
+          <div style="font-size:13px;color:var(--t2);margin-bottom:10px">Bạn có phản ứng có chủ đích không?</div>
+          <div class="intent-grid">
+            <button class="intent-btn ${logForm.data.intentional===true?'sel':''}"
+              style="${logForm.data.intentional===true?`border-color:#1D9E75;background:rgba(29,158,117,.1);color:#085041`:''}"
+              onclick="selectIntent(true)">Có — tôi đã dừng lại</button>
+            <button class="intent-btn ${logForm.data.intentional===false?'sel':''}"
+              style="${logForm.data.intentional===false?`border-color:#BA7517;background:rgba(186,117,23,.1);color:#633806`:''}"
+              onclick="selectIntent(false)">Không — chạy autopilot</button>
+          </div>
+        </div>
+        <button id="log-save-btn" class="btn-primary" style="background:${p.c}" onclick="saveLog()" ${ok?'':'disabled'}>Lưu log ✓</button>
+      </div>`;
+  }
+}
+
+function logNext() {
+  const s = TRACE_STEPS[logForm.step];
+  if (!logForm.data[s.k].trim()) return;
+  logForm.step++;
+  renderLogStep();
+}
+function logBack() { logForm.step--; renderLogStep(); }
+function selectDomain(id) { logForm.data.domain = id; renderLogStep(); }
+function selectIntent(v) { logForm.data.intentional = v; renderLogStep(); }
+function saveLog() {
+  if (!logForm.data.domain || logForm.data.intentional === null) return;
+  const td = today();
+  const lg = {...logForm.data, id: Date.now().toString(), date: td};
+  logs.unshift(lg);
+  const sd = stats.startDate || td;
+  const yd = new Date(new Date() - 86400000).toISOString().split('T')[0];
+  const streak = stats.lastLogDate === td ? stats.streak : stats.lastLogDate === yd ? stats.streak + 1 : 1;
+  stats = {startDate: sd, streak, lastLogDate: td, totalLogs: (stats.totalLogs || 0) + 1};
+  save();
+  goTab('home');
+}
+
+// ── RENDER HISTORY ────────────────────────────────────────────────────────────
+function renderHist() {
+  if (!logs.length) {
+    document.getElementById('hist-empty').style.display = 'block';
+    document.getElementById('hist-content').style.display = 'none';
+    return;
+  }
+  document.getElementById('hist-empty').style.display = 'none';
+  document.getElementById('hist-content').style.display = 'block';
+
+  const ir = getIntentionalRate();
+  document.getElementById('hist-ir').textContent = ir + '%';
+  document.getElementById('hist-ir').style.color = ir >= 50 ? '#1D9E75' : '#BA7517';
+  document.getElementById('hist-ir-sub').textContent = ir >= 50 ? 'Đang tiến bộ tốt' : 'Tiếp tục cố gắng';
+  document.getElementById('hist-total').textContent = logs.length;
+
+  const dc = {};
+  logs.forEach(l => { dc[l.domain] = (dc[l.domain] || 0) + 1; });
+  const domainsEl = document.getElementById('hist-domains');
+  domainsEl.innerHTML = DOMAINS.filter(d => dc[d.id]).map(d => {
+    const ct = dc[d.id], pct = Math.round(ct / logs.length * 100);
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+        <span style="color:var(--t1)">${d.l}</span><span style="color:var(--t3)">${ct} (${pct}%)</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill" style="background:#1D9E75;width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+
+  const filters = ['all', ...Object.keys(dc)];
+  document.getElementById('hist-filters').innerHTML = filters.map(f =>
+    `<button onclick="setHistFilter('${f}')" style="padding:5px 11px;border-radius:20px;font-size:12px;border:.5px solid ${histFilter===f?'#1D9E75':'var(--border)'};background:${histFilter===f?'rgba(29,158,117,.1)':'none'};color:${histFilter===f?'#1D9E75':'var(--t2)'};font-weight:${histFilter===f?500:400};cursor:pointer;font-family:inherit">
+      ${f==='all'?'Tất cả':DOMAINS.find(d=>d.id===f)?.l||f}
+    </button>`
+  ).join('');
+
+  const filtered = histFilter === 'all' ? logs : logs.filter(l => l.domain === histFilter);
+  document.getElementById('hist-list').innerHTML = filtered.map(lg => logCardHTML(lg, false)).join('');
+}
+function setHistFilter(f) { histFilter = f; renderHist(); }
+
+// ── RENDER COACH ──────────────────────────────────────────────────────────────
+function renderCoach() {
+  const p = getPhaseData();
+  const apiKey = localStorage.getItem('trace_api_key');
+  document.getElementById('coach-apikey-section').style.display = apiKey ? 'none' : 'block';
+  document.getElementById('coach-analyze-btn').style.background = p.c;
+  document.getElementById('coach-analyze-btn').textContent = `✦ Phân tích ${logs.length} log của tôi`;
+  document.getElementById('coach-insight').style.borderColor = p.c;
+  document.getElementById('chat-send').style.background = p.c;
+}
+function saveApiKey() {
+  const key = document.getElementById('coach-apikey').value.trim();
+  if (!key) return;
+  localStorage.setItem('trace_api_key', key);
+  document.getElementById('coach-apikey-section').style.display = 'none';
+}
+
+async function analyzePatterns() {
+  const apiKey = localStorage.getItem('trace_api_key');
+  if (!apiKey) { alert('Vui lòng nhập API Key để dùng tính năng AI Coach.'); return; }
+  if (logs.length < 3) { showInsight('Bạn cần ít nhất 3 logs để tôi có thể phân tích mô hình. Hãy tiếp tục ghi chép!'); return; }
+  if (coachLoading) return;
+  coachLoading = true;
+  const btn = document.getElementById('coach-analyze-btn');
+  btn.textContent = '⟳ Đang phân tích...'; btn.disabled = true;
+  const p = getPhaseData();
+  const logsText = logs.slice(0,10).map((l,i) =>
+    `[${i+1}] ${l.date}·${l.domain}\nT:${l.trigger}\nR:${l.reaction}\nA:${l.automatic}\nC:${l.choice}\nE:${l.effect}\nChủ đích:${l.intentional}`
+  ).join('\n\n');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
+      body: JSON.stringify({
+        model:'claude-opus-4-5', max_tokens:1000,
+        system:`Bạn là huấn luyện viên tâm lý cá nhân, chuyên về TRACE framework. Tiếng Việt. Ngắn gọn thực tế. Tối đa 280 từ. Phase ${p.n}: ${p.ds}`,
+        messages:[{role:'user', content:`Logs của tôi:\n\n${logsText}\n\nPhân tích: 1) Mô hình autopilot lặp lại rõ nhất, 2) Điểm mạnh đang thể hiện, 3) Một bước cụ thể phù hợp Phase ${p.id}.`}]
+      })
+    });
+    const data = await res.json();
+    showInsight(data.content?.map(c=>c.text||'').join('\n') || 'Không nhận được phản hồi.');
+  } catch (e) {
+    showInsight('Không thể kết nối. Kiểm tra API key và kết nối mạng.');
+  }
+  btn.textContent = `✦ Phân tích ${logs.length} log của tôi`; btn.disabled = false;
+  coachLoading = false;
+}
+
+function showInsight(text) {
+  const el = document.getElementById('coach-insight');
+  el.style.display = 'block'; el.textContent = text;
+}
+
+async function sendChat() {
+  const apiKey = localStorage.getItem('trace_api_key');
+  if (!apiKey) { alert('Vui lòng nhập API Key để dùng tính năng này.'); return; }
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg || coachLoading) return;
+  input.value = '';
+  chatHistory.push({role:'user', content:msg});
+  renderChat();
+  coachLoading = true;
+  const p = getPhaseData();
+  const logsCtx = logs.slice(0,5).map((l,i) =>
+    `${i+1}: T="${l.trigger}" R="${l.reaction}" A="${l.automatic}" C="${l.choice}" E="${l.effect}" ${l.domain} ${l.intentional?'chủ đích':'tự động'}`
+  ).join('\n');
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
+      body: JSON.stringify({
+        model:'claude-opus-4-5', max_tokens:700,
+        system:`Huấn luyện viên tâm lý cá nhân. Tiếng Việt ngắn gọn thực tế. Phase ${p.n}. Logs(${logs.length}): ${logsCtx||'chưa có'}`,
+        messages: chatHistory
+      })
+    });
+    const data = await res.json();
+    const reply = data.content?.map(c=>c.text||'').join('\n') || 'Không nhận được phản hồi.';
+    chatHistory.push({role:'assistant', content:reply});
+  } catch {
+    chatHistory.push({role:'assistant', content:'Lỗi kết nối. Thử lại nhé.'});
+  }
+  coachLoading = false;
+  renderChat();
+}
+
+function renderChat() {
+  const el = document.getElementById('chat-log');
+  el.innerHTML = chatHistory.map(m => `
+    <div class="chat-wrap ${m.role==='user'?'user':''}">
+      <div class="chat-bubble ${m.role==='user'?'chat-user':'chat-ai'}">${m.content}</div>
+    </div>`).join('');
+  if (coachLoading) {
+    el.innerHTML += `<div class="dots-wrap"><div class="dot-el dot1"></div><div class="dot-el dot2"></div><div class="dot-el dot3"></div></div>`;
+  }
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── RENDER JOURNEY ────────────────────────────────────────────────────────────
+function renderJour() {
+  const days = getDays(), ph = getPhase(), ir = getIntentionalRate();
+  document.getElementById('jour-start').textContent = stats.startDate ? 'Bắt đầu: ' + stats.startDate : 'Chưa bắt đầu — tạo log đầu tiên để khởi động';
+
+  if (days > 0) {
+    document.getElementById('jour-progress-card').style.display = 'block';
+    const pct = Math.min(days / 180 * 100, 100);
+    document.getElementById('jour-prog-text').textContent = `${days}/180 ngày (${Math.round(pct)}%)`;
+    document.getElementById('jour-prog-fill').style.width = pct + '%';
+  }
+
+  const phasesEl = document.getElementById('jour-phases');
+  phasesEl.innerHTML = PHASES.map((p,i) => {
+    const isActive = ph === i, isDone = ph > i;
+    const phaseDays = Math.max(0, Math.min(days - p.d[0] + 1, 60));
+    const pct = isDone ? 100 : isActive ? Math.round(phaseDays / 60 * 100) : 0;
+    const opacity = !isActive && !isDone ? 0.5 : 1;
+    const milestones = (isActive || isDone) ? p.ms.map(m => {
+      const reached = days >= m.d;
+      return `<div style="display:flex;gap:7px;align-items:flex-start;margin-bottom:6px">
+        <div style="width:15px;height:15px;border-radius:50%;flex-shrink:0;margin-top:1px;background:${reached?p.c:'var(--border)'};display:flex;align-items:center;justify-content:center;font-size:8px;color:white;font-weight:700">${reached?'✓':''}</div>
+        <div style="font-size:12px;color:${reached?'var(--t1)':'var(--t3)'};line-height:1.4">${m.t}</div>
+      </div>`;
+    }).join('') : '';
+    return `
+      <div class="phase-card ${isActive?'active':!isDone&&!isActive?'inactive':''}" style="opacity:${opacity};${isActive?`border-color:${p.c};background:${p.bg};`:''}" >
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="font-size:10px;font-weight:600;padding:2px 8px;background:${p.c};color:white;border-radius:10px">P${p.id}</span>
+            <span style="font-size:14px;font-weight:600;color:${isActive?p.c:'var(--t1)'}">${p.n}</span>
+            ${isDone?'<span style="font-size:11px;color:#1D9E75">✓</span>':''}
+            ${isActive?`<span style="font-size:10px;color:${p.c};font-weight:500">● đang diễn ra</span>`:''}
+          </div>
+          <span style="font-size:18px;font-weight:700;color:${p.c}">${pct}%</span>
+        </div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:7px">${p.r} · Ngày ${p.d[0]}–${p.d[1]}</div>
+        <div style="font-size:13px;color:var(--t2);line-height:1.5;margin-bottom:9px">${p.g}</div>
+        <div class="prog-bar" style="height:4px;margin-bottom:${milestones?'10px':'0'}"><div class="prog-fill" style="background:${p.c};width:${pct}%"></div></div>
+        ${milestones}
+      </div>`;
+  }).join('');
+
+  if (ir !== null) {
+    const irCard = document.getElementById('jour-ir-card');
+    irCard.style.display = 'flex';
+    document.getElementById('jour-ir-val').textContent = ir + '%';
+    document.getElementById('jour-ir-val').style.color = ir >= 50 ? '#1D9E75' : '#BA7517';
+  }
+}
+
+// ── EXPORT / IMPORT ───────────────────────────────────────────────────────────
+function exportData() {
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    logs,
+    stats,
+  };
+  const json = JSON.stringify(payload, null, 2);
+  const dateStr = new Date().toISOString().split('T')[0];
+  const fileName = `LifeModel_backup_${dateStr}.json`;
+  const blob = new Blob([json], {type: 'application/json'});
+
+  // iOS Safari: dùng Web Share API nếu có
+  if (navigator.share && navigator.canShare) {
+    const file = new File([blob], fileName, {type: 'application/json'});
+    if (navigator.canShare({files: [file]})) {
+      navigator.share({files: [file], title: 'Life Model Backup'})
+        .then(() => showBackupMsg(`✓ Đã xuất ${logs.length} logs`, 'success'))
+        .catch(() => {});
+      return;
+    }
+  }
+
+  // Fallback cho các trình duyệt khác
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showBackupMsg(`✓ Đã xuất ${logs.length} logs — lưu file này để backup`, 'success');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const payload = JSON.parse(e.target.result);
+      if (!payload.logs || !Array.isArray(payload.logs)) throw new Error('Định dạng không hợp lệ');
+      const confirmed = confirm(
+        `Tìm thấy ${payload.logs.length} logs từ backup ngày ${payload.exportedAt?.split('T')[0] || '?'}.\n\nBạn muốn:\n• Ghi đè dữ liệu hiện tại (OK)\n• Huỷ (Cancel)`
+      );
+      if (!confirmed) return;
+      logs = payload.logs;
+      stats = payload.stats || stats;
+      save();
+      renderJour();
+      showBackupMsg(`✓ Đã nhập thành công ${logs.length} logs`, 'success');
+    } catch (err) {
+      showBackupMsg('✗ File không hợp lệ. Vui lòng dùng file backup từ ứng dụng này.', 'error');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function showBackupMsg(text, type) {
+  const el = document.getElementById('backup-msg');
+  el.style.display = 'block';
+  el.textContent = text;
+  el.style.background = type === 'success' ? 'rgba(29,158,117,.12)' : 'rgba(220,53,69,.1)';
+  el.style.color = type === 'success' ? '#085041' : '#8b1a1a';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+renderHome();
+</script>
+</body>
+</html>
